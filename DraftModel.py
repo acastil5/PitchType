@@ -1,11 +1,11 @@
-''' DraftModel.py '''
-
 import pandas as pd
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from sklearn.impute import SimpleImputer
+from sklearn.svm import SVC
+from sklearn.neural_network import MLPClassifier
 from joblib import dump
 
 # Load your dataset
@@ -21,18 +21,15 @@ categorical_features = ['pitch_hand']
 # Apply imputation only on numeric features
 imputer = SimpleImputer(strategy='mean')
 df[numeric_features] = imputer.fit_transform(df[numeric_features])
+dump(imputer, 'imputer.joblib')  # Save the imputer
 
-# Save the imputer
-dump(imputer, 'imputer.joblib')
-
-# Now encode categorical data
+# Encode categorical data
 label_encoders = {}
-for column in categorical_features + ['pitch_type_name']:  # Add 'pitch_type_name' to the list
+for column in categorical_features + ['pitch_type_name']:
     label_encoder = LabelEncoder()
     df[column] = label_encoder.fit_transform(df[column])
     label_encoders[column] = label_encoder
-    # Save each encoder
-    dump(label_encoder, f'{column}_encoder.joblib')  # This line now saves the 'pitch_type_name' encoder
+    dump(label_encoder, f'{column}_encoder.joblib')
 
 # Combine numeric and categorical features
 feature_cols = numeric_features + categorical_features
@@ -45,20 +42,31 @@ y = df['pitch_type_name']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # Initialize the Random Forest Classifier
-rfc = RandomForestClassifier(n_estimators=100, random_state=42)
+rfc = RandomForestClassifier(random_state=42)
 
-# Train the model
-rfc.fit(X_train, y_train)
+# Hyperparameter tuning for Random Forest
+param_grid = {
+    'n_estimators': [100, 200, 300],
+    'max_depth': [None, 10, 20, 30],
+}
 
-# Save the model to a file
-dump(rfc, 'rfc_model.joblib')
+grid_search = GridSearchCV(rfc, param_grid, cv=5, n_jobs=-1, verbose=2)
+grid_search.fit(X_train, y_train)
+print("Best Parameters:", grid_search.best_params_)
+best_rfc = grid_search.best_estimator_
+dump(best_rfc, 'best_rfc_model.joblib')  # Save the best Random Forest model
 
-# No need to save the imputer again, it's already saved above
-# dump(imputer, 'imputer.joblib')
+# SVM Model
+svc = SVC()
+svc.fit(X_train, y_train)
 
-# Predict on the test set
-y_pred = rfc.predict(X_test)
+# Neural Network Model
+mlp = MLPClassifier()
+mlp.fit(X_train, y_train)
 
-# Evaluate the model
-print("Accuracy:", accuracy_score(y_test, y_pred))
-print(classification_report(y_test, y_pred, zero_division=0))
+# Evaluating all models
+models = {'Random Forest': best_rfc, 'SVM': svc, 'Neural Network': mlp}
+for name, model in models.items():
+    y_pred = model.predict(X_test)
+    print(f"{name} Accuracy: {accuracy_score(y_test, y_pred)}")
+    print(f"{name} Classification Report:\n{classification_report(y_test, y_pred, zero_division=0)}\n")

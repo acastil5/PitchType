@@ -18,18 +18,24 @@ numeric_features = ['avg_speed', 'pitches_thrown', 'total_pitches', 'pitches_per
 imputer = load('imputer.joblib')
 pitch_hand_encoder = load('pitch_hand_encoder.joblib')
 pitch_type_encoder = load('pitch_type_name_encoder.joblib')
-rfc_model = load('rfc_model.joblib')
+rfc_model = load('best_rfc_model.joblib')
 
 # Function to prompt the user for input and preprocess that input
 def get_user_input():
     user_input = {}
-    for feature in user_features:
-        # For categorical feature, we expect a string, otherwise a float
-        if feature == 'pitch_hand':
-            user_input[feature] = input(f"Enter the value for {feature} (L/R): ")
-        else:
-            user_input[feature] = float(input(f"Enter the value for {feature}: "))
-    
+    for feature in ['avg_speed', 'pitcher_break_x', 'pitcher_break_z', 'pitch_hand', 'rise', 'tail']:
+        while True:
+            try:
+                if feature == 'pitch_hand':
+                    value = input(f"Enter the value for {feature} (L/R): ").strip().upper()
+                    if value not in ['L', 'R']:
+                        raise ValueError("Invalid input. Please enter 'L' or 'R'.")
+                else:
+                    value = float(input(f"Enter the value for {feature}: "))
+                user_input[feature] = value
+                break
+            except ValueError as e:
+                print(f"Invalid input: {e}")
     return user_input
 
 # Function to encode categorical features using the fitted LabelEncoders
@@ -74,22 +80,15 @@ def predict_pitch_type(model, imputed_features):
 
 # Interactive script to get user input and predict pitch type
 def main():
-    # Get user input
-    user_input = get_user_input()
+    while True:
+        user_input = get_user_input()
+        encoded_user_input = encode_categorical_data(user_input)
+        imputed_features = impute_missing_features(encoded_user_input, imputer, numeric_features)
+        pitch_type = predict_pitch_type(rfc_model, imputed_features)
+        print(f"The predicted pitch type is: {pitch_type}")
 
-    # Encode categorical features
-    encoded_user_input = encode_categorical_data(user_input)
+        if input("\nDo you want to predict another pitch type? (yes/no): ").strip().lower() != 'yes':
+            break
 
-    # Impute missing values for the other features
-    imputed_features = impute_missing_features(encoded_user_input, imputer, numeric_features)
-
-    # Predict the pitch type
-    pitch_type = predict_pitch_type(rfc_model, imputed_features)
-
-    # Output the prediction to the user
-    print(f"The predicted pitch type is: {pitch_type}")
-
-
-# Run the script
 if __name__ == '__main__':
     main()
