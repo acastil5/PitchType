@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 from joblib import load
 
-
 # Define the subset of features you want to prompt the user for
 user_features = ['avg_speed', 'pitcher_break_x', 'pitcher_break_z', 'pitch_hand', 'rise', 'tail']
 
@@ -23,19 +22,29 @@ rfc_model = load('best_rfc_model.joblib')
 # Function to prompt the user for input and preprocess that input
 def get_user_input():
     user_input = {}
-    for feature in ['avg_speed', 'pitcher_break_x', 'pitcher_break_z', 'pitch_hand', 'rise', 'tail']:
+    print("Please enter the following pitch data:")
+
+    inputs = {
+        'avg_speed': "Enter the average speed of the pitch (in MPH): ",
+        'pitcher_break_x': "Enter the value for horizontal break (in inches): ",
+        'pitcher_break_z': "Enter the value for vertical break (in inches): ",
+        'pitch_hand': "Enter the pitcher's hand (L for left-handed, R for right-handed): "
+    }
+
+    for key, message in inputs.items():
         while True:
             try:
-                if feature == 'pitch_hand':
-                    value = input(f"Enter the value for {feature} (L/R): ").strip().upper()
+                if key in ['avg_speed', 'pitcher_break_x', 'pitcher_break_z']:
+                    value = float(input(message))
+                elif key == 'pitch_hand':
+                    value = input(message).strip().upper()
                     if value not in ['L', 'R']:
                         raise ValueError("Invalid input. Please enter 'L' or 'R'.")
-                else:
-                    value = float(input(f"Enter the value for {feature}: "))
-                user_input[feature] = value
+                user_input[key] = value
                 break
             except ValueError as e:
                 print(f"Invalid input: {e}")
+
     return user_input
 
 # Function to encode categorical features using the fitted LabelEncoders
